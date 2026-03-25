@@ -11,3 +11,4 @@ httpx
 python-dotenv
 langsmith
 pydantic
+python-multipart
