@@ -6,6 +6,9 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from typing import Optional
 
+from agents.birdie_agent import run_birdie_agent
+from tools.care_router import run_care_router
+from tools.find_care import run_find_care
 from tools.plan_lookup import run_plan_lookup
 
 load_dotenv()
@@ -38,13 +41,63 @@ class ChatRequest(BaseModel):
     user_language: str = "en"
 
 
-async def placeholder_stream():
-    yield "Birdie is thinking..."
+class CareRouterRequest(BaseModel):
+    user_message: str
+    extracted_context: Optional[dict] = None
+    plan_json: Optional[dict] = None
+    user_language: str = "en"
+
+
+class FindCareRequest(BaseModel):
+    care_type: str
+    location: Location
+    open_now: bool = True
+    plan_json: Optional[dict] = None
+    user_language: str = "en"
 
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
-    return StreamingResponse(placeholder_stream(), media_type="text/plain")
+    return StreamingResponse(run_birdie_agent(request), media_type="text/plain")
+
+
+@app.post("/api/care-router")
+async def care_router_endpoint(request: CareRouterRequest):
+    """Route a symptom description to the appropriate care setting.
+
+    Hard rules enforced:
+    - NEVER diagnoses conditions or recommends specific treatments
+    - NEVER confirms in-network status — always "call to verify"
+    - ALWAYS returns the disclaimer in every response
+    - plan_json=null handled gracefully with general guidance
+    """
+    result = await run_care_router(
+        user_message=request.user_message,
+        extracted_context=request.extracted_context,
+        plan_json=request.plan_json,
+        user_language=request.user_language,
+    )
+    return JSONResponse(content=result)
+
+
+@app.post("/api/find-care")
+async def find_care_endpoint(request: FindCareRequest):
+    """Find nearby providers for a given care_type.
+
+    Hard rules enforced:
+    - network_status always "verify_required" — never confirms in-network status
+    - Telehealth special case skips Maps entirely
+    - No Maps results or API failure → telehealth fallback with insurer URL
+    - plan_json=null handled gracefully
+    """
+    result = await run_find_care(
+        care_type=request.care_type,
+        location={"lat": request.location.lat, "lng": request.location.lng},
+        open_now=request.open_now,
+        plan_json=request.plan_json,
+        user_language=request.user_language,
+    )
+    return JSONResponse(content=result)
 
 
 @app.post("/api/plan-lookup")
