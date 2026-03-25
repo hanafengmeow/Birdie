@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+langchain
+langgraph
+langchain-anthropic
+langchain-community
+langchain-pymupdf4llm
+docling
+googlemaps
+httpx
+python-dotenv
+langsmith
+pydantic
