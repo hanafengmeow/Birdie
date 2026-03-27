@@ -28,6 +28,7 @@ from config import (
     NETWORK_NOTE,
     NETWORK_STATUS,
     SEARCH_RADIUS_METERS,
+    SPECIALIST_SEARCH_RADIUS,
 )
 
 
@@ -176,6 +177,7 @@ async def run_find_care(
     open_now: bool = True,
     plan_json: Optional[dict] = None,
     user_language: str = "en",
+    search_query: Optional[str] = None,
 ) -> dict:
     """Find nearby providers for a given care_type.
 
@@ -194,27 +196,47 @@ async def run_find_care(
     if care_type == "telehealth":
         return _telehealth_response("telehealth", plan_json, user_language, telehealth_fallback=False)
 
-    keyword = CARE_TYPE_MAPPING.get(care_type)
+    # For "specialist" care_type, use the search_query from intent classifier
+    if care_type == "specialist" and search_query:
+        keyword = search_query
+    else:
+        keyword = CARE_TYPE_MAPPING.get(care_type)
     if keyword is None:
         # Unknown care_type falls back to telehealth
         return _telehealth_response(care_type, plan_json, user_language, telehealth_fallback=True)
+
+    # Specialists are sparser — use wider search radius
+    radius = SPECIALIST_SEARCH_RADIUS if care_type == "specialist" else SEARCH_RADIUS_METERS
 
     try:
         gmaps = _get_gmaps_client()
         response = gmaps.places_nearby(  # type: ignore[attr-defined]
             location=(lat, lng),
-            radius=SEARCH_RADIUS_METERS,
+            radius=radius,
             keyword=keyword,
             open_now=open_now,
             language=lang_code,
         )
+        places = response.get("results", [])
+
+        # If open_now returned no results, retry without the filter.
+        # Appointment-based care (PT, PCP, mental health) may be closed
+        # at the time of search but still useful to show.
+        if not places and open_now:
+            response = gmaps.places_nearby(  # type: ignore[attr-defined]
+                location=(lat, lng),
+                radius=radius,
+                keyword=keyword,
+                language=lang_code,
+            )
+            places = response.get("results", [])
+
     except Exception:
         # API failure → telehealth fallback (CLAUDE.md fallback rule)
         return _telehealth_response(care_type, plan_json, user_language, telehealth_fallback=True)
 
-    places = response.get("results", [])
     if not places:
-        # No results → telehealth fallback (CLAUDE.md fallback rule)
+        # No results even without open_now → telehealth fallback
         return _telehealth_response(care_type, plan_json, user_language, telehealth_fallback=True)
 
     # Calculate distance for each place, sort ascending, take top MAX_RESULTS

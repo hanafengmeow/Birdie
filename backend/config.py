@@ -87,7 +87,8 @@ _SPECIALIST_CARE_TYPES: frozenset[str] = frozenset({"pt", "mental_health"})
 # ── find_care constants ────────────────────────────────────────────────────────
 
 MAX_RESULTS = 5
-SEARCH_RADIUS_METERS = 16000  # ~10 miles
+SEARCH_RADIUS_METERS = 16000       # ~10 miles (standard care types)
+SPECIALIST_SEARCH_RADIUS = 32000   # ~20 miles (specialists are sparser)
 
 CARE_TYPE_MAPPING: dict[str, Optional[str]] = {
     "urgent_care":   "urgent care clinic",
@@ -97,156 +98,23 @@ CARE_TYPE_MAPPING: dict[str, Optional[str]] = {
     "mental_health": "mental health clinic therapist",
     "pt":            "physical therapy clinic",
     "telehealth":    None,  # special case — skip Maps
+    "specialist":    None,  # uses search_query from intent classifier
 }
 
 NETWORK_STATUS = "verify_required"
 NETWORK_NOTE = "Call to verify if this provider accepts your insurance"
 
-# ── Demo data ──────────────────────────────────────────────────────────────────
+# ── Intent classification constants ──────────────────────────────────────────
 
-# Pre-loaded plan JSON for demo / "I'm a Northeastern student" fast path.
-# Represents Northeastern NUSHP 2024-25 via Aetna Student Health.
-# All values are realistic approximations — verify against current SBC.
-# confidence=HIGH because this data is manually curated (not parser-extracted).
-NORTHEASTERN_SHIP_TEMPLATE: dict = {
-    "deductible_individual": {
-        "value": "$100",
-        "page": 2,
-        "bbox": None,
-        "source_text": "Individual Deductible: $100 per plan year (in-network)",
-        "confidence": "HIGH",
-    },
-    "deductible_family": {
-        "value": "$200",
-        "page": 2,
-        "bbox": None,
-        "source_text": "Family Deductible: $200 per plan year (in-network)",
-        "confidence": "HIGH",
-    },
-    "out_of_pocket_max_individual": {
-        "value": "$3,000",
-        "page": 2,
-        "bbox": None,
-        "source_text": "Out-of-Pocket Maximum: $3,000 individual per plan year",
-        "confidence": "HIGH",
-    },
-    "out_of_pocket_max_family": {
-        "value": "$6,000",
-        "page": 2,
-        "bbox": None,
-        "source_text": "Out-of-Pocket Maximum: $6,000 family per plan year",
-        "confidence": "HIGH",
-    },
-    "primary_care_copay": {
-        "value": "$20 copay",
-        "page": 3,
-        "bbox": None,
-        "source_text": "Primary Care Visit (your share): $20 copay per visit",
-        "confidence": "HIGH",
-    },
-    "specialist_copay": {
-        "value": "$40 copay",
-        "page": 3,
-        "bbox": None,
-        "source_text": "Specialist Office Visit: $40 copay per visit",
-        "confidence": "HIGH",
-    },
-    "urgent_care_copay": {
-        "value": "$50 copay",
-        "page": 3,
-        "bbox": None,
-        "source_text": "Urgent Care Center: $50 copay per visit",
-        "confidence": "HIGH",
-    },
-    "er_copay": {
-        "value": "$150 copay",
-        "page": 3,
-        "bbox": None,
-        "source_text": "Emergency Room Services: $150 copay per visit",
-        "confidence": "HIGH",
-    },
-    "er_copay_waived_if_admitted": {
-        "value": True,
-        "page": 3,
-        "bbox": None,
-        "source_text": "Emergency room copay waived if admitted as an inpatient",
-        "confidence": "HIGH",
-    },
-    "telehealth_copay": {
-        "value": "$0 copay",
-        "page": 4,
-        "bbox": None,
-        "source_text": "Telehealth / Virtual Visit via Teladoc: $0 copay per visit",
-        "confidence": "HIGH",
-    },
-    "telehealth_covered": {
-        "value": True,
-        "page": 4,
-        "bbox": None,
-        "source_text": "Telehealth services covered at $0 through Aetna's Teladoc platform",
-        "confidence": "HIGH",
-    },
-    "generic_drug_copay": {
-        "value": "$10 copay",
-        "page": 5,
-        "bbox": None,
-        "source_text": "Tier 1 — Generic Drugs: $10 copay per 30-day supply",
-        "confidence": "HIGH",
-    },
-    "preferred_drug_copay": {
-        "value": "$35 copay",
-        "page": 5,
-        "bbox": None,
-        "source_text": "Tier 2 — Preferred Brand Drugs: $35 copay per 30-day supply",
-        "confidence": "HIGH",
-    },
-    "mental_health_copay": {
-        "value": "$20 copay",
-        "page": 4,
-        "bbox": None,
-        "source_text": "Mental Health / Behavioral Health Outpatient: $20 copay per visit",
-        "confidence": "HIGH",
-    },
-    "in_network_required": {
-        "value": True,
-        "page": 2,
-        "bbox": None,
-        "source_text": "This plan only pays for services from in-network providers (EPO plan)",
-        "confidence": "HIGH",
-    },
-    "pcp_referral_required": {
-        "value": False,
-        "page": 2,
-        "bbox": None,
-        "source_text": "No referral required to see a specialist",
-        "confidence": "HIGH",
-    },
-    "prior_auth_flags": {
-        "value": [
-            "Inpatient Hospital Admission",
-            "MRI / CT Scan / PET Scan",
-            "Outpatient Surgery",
-            "Specialty Drugs",
-            "Physical Therapy (more than 30 visits per year)",
-            "Mental Health Inpatient Services",
-        ],
-        "page": 6,
-        "bbox": None,
-        "source_text": "Prior Authorization Required: Inpatient Hospital Admission, MRI / CT Scan / PET Scan...",
-        "confidence": "HIGH",
-    },
-    "insurer_phone": {
-        "value": "1-877-468-0016",
-        "page": 8,
-        "bbox": None,
-        "source_text": "Questions? Call Aetna Student Health Member Services: 1-877-468-0016",
-        "confidence": "HIGH",
-    },
-    "insurer_provider_finder_url": {
-        "value": "https://www.aetnastudenthealth.com/schools/northeastern",
-        "page": 8,
-        "bbox": None,
-        "source_text": "Find a Provider: aetnastudenthealth.com/schools/northeastern",
-        "confidence": "HIGH",
-    },
-}
+CONFIDENCE_HIGH_THRESHOLD = 0.85   # use zero-shot result directly
+CONFIDENCE_LOW_THRESHOLD = 0.70    # fall back to few-shot re-classification
+# 0.70-0.85 → few-shot only for complex intents (combined, symptom_routing, visit_prep)
+
+COMPLEX_INTENTS: frozenset[str] = frozenset({
+    "combined", "symptom_routing", "visit_prep",
+})
+
+# ── Conversation history constants ───────────────────────────────────────────
+
+MAX_HISTORY_TURNS = 10             # max recent turns to forward (20 messages)
+HISTORY_TRIM_TOKENS = 3000         # max tokens for trim_messages

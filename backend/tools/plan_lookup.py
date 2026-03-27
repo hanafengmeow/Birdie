@@ -27,10 +27,13 @@ Design decisions (not in CLAUDE.md):
 
 import asyncio
 import json
+import logging
 import os
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -135,7 +138,8 @@ def _call_extractor(
                     "source_text": entry.get("source_text"),
                 }
         return result
-    except Exception:
+    except Exception as exc:
+        logger.error("Extractor Claude call failed: %s", exc)
         return _empty_schema()
 
 
@@ -168,8 +172,9 @@ def _node_validator_agent(state: GleaningState) -> dict:
             HumanMessage(content=user_msg),
         ])
         report = json.loads(_strip_fences(str(response.content)))
-    except Exception:
+    except Exception as exc:
         # If validator fails, treat as passed — never block the pipeline
+        logger.error("Validator Claude call failed: %s", exc)
         report = {
             "passed": True,
             "issues": [],
@@ -349,4 +354,53 @@ async def run_plan_lookup(pdf_bytes: bytes) -> dict:
 
     graph = _get_gleaning_graph()
     final_state = graph.invoke(initial_state)
-    return final_state["final_json"]
+
+    # Return structured JSON + raw parsed text for document Q&A
+    return {
+        "plan_json": final_state["final_json"],
+        "plan_raw_text": raw_a[:20_000],  # Parser A markdown, capped
+        "plan_name": _extract_plan_name(raw_a),
+    }
+
+
+def _extract_plan_name(raw_text: str) -> str:
+    """Extract plan name from SBC header.
+
+    SBC standard format has plan/insurer info in the first few lines.
+    Look for lines containing identifiers like 'Blue', 'Aetna', 'United',
+    or 'Plan Type:' which typically appear in the plan header row.
+    """
+    header = raw_text[:2000]
+    lines = header.split("\n")
+
+    def _clean(text: str) -> str:
+        """Strip markdown formatting and extra whitespace."""
+        import re
+        text = re.sub(r"\*+", "", text)  # remove bold/italic markers
+        text = text.strip("#").strip()
+        text = re.sub(r"\s+", " ", text)  # collapse whitespace
+        return text.strip()
+
+    # Strategy 1: Find the line with "Plan Type:" — it typically contains the plan name
+    for line in lines:
+        if "plan type:" in line.lower():
+            clean = _clean(line)
+            # Extract everything before "Coverage for:" if present
+            if "coverage for:" in clean.lower():
+                clean = clean[:clean.lower().index("coverage for:")].strip()
+            # Remove "Plan Type: XXX" suffix
+            if "plan type:" in clean.lower():
+                clean = clean[:clean.lower().index("plan type:")].strip().rstrip("|").strip()
+            if clean:
+                return clean
+
+    # Strategy 2: Find line with known insurer names
+    insurers = ["blue cross", "blue shield", "aetna", "united", "cigna", "kaiser", "humana", "anthem"]
+    for line in lines:
+        lower = line.lower().strip()
+        if any(ins in lower for ins in insurers) and len(lower) > 10:
+            clean = _clean(line)
+            if len(clean) < 150:
+                return clean
+
+    return "Insurance Plan"

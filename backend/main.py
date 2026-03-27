@@ -37,8 +37,10 @@ class Location(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     plan_json: Optional[dict] = None
+    plan_raw_text: Optional[str] = None
     location: Optional[Location] = None
     user_language: str = "en"
+    conversation_history: Optional[list[dict]] = None
 
 
 class CareRouterRequest(BaseModel):
@@ -98,6 +100,66 @@ async def find_care_endpoint(request: FindCareRequest):
         user_language=request.user_language,
     )
     return JSONResponse(content=result)
+
+
+class GeocodeRequest(BaseModel):
+    address: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+
+
+@app.post("/api/geocode")
+async def geocode_address(request: GeocodeRequest):
+    """Convert a text address to lat/lng or reverse-geocode lat/lng to an address.
+
+    Two modes:
+    - Forward: provide `address` -> returns lat, lng, formatted_address
+    - Reverse: provide `lat` and `lng` (address empty/None) -> returns lat, lng, formatted_address
+    """
+    import googlemaps
+
+    api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Geocoding service unavailable.")
+
+    reverse_mode = (
+        request.lat is not None
+        and request.lng is not None
+        and not (request.address and request.address.strip())
+    )
+
+    if not reverse_mode and not (request.address and request.address.strip()):
+        raise HTTPException(
+            status_code=400,
+            detail="Provide either an address or lat/lng coordinates.",
+        )
+
+    try:
+        gmaps = googlemaps.Client(key=api_key)
+
+        if reverse_mode:
+            results = gmaps.reverse_geocode((request.lat, request.lng))
+            if not results:
+                raise HTTPException(status_code=404, detail="Address not found for these coordinates.")
+            return JSONResponse(content={
+                "lat": request.lat,
+                "lng": request.lng,
+                "formatted_address": results[0].get("formatted_address", ""),
+            })
+        else:
+            results = gmaps.geocode(request.address)
+            if not results:
+                raise HTTPException(status_code=404, detail="Address not found.")
+            loc = results[0]["geometry"]["location"]
+            return JSONResponse(content={
+                "lat": loc["lat"],
+                "lng": loc["lng"],
+                "formatted_address": results[0].get("formatted_address", request.address),
+            })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/plan-lookup")
