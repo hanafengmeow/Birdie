@@ -1,65 +1,159 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+import i18n, { detectLanguage } from "@/lib/i18n";
+import { WelcomeScreen } from "@/components/birdie/WelcomeScreen";
+import { TopBar } from "@/components/birdie/TopBar";
+import { Sidebar } from "@/components/birdie/Sidebar";
+import { SBCUploadModal } from "@/components/birdie/SBCUploadModal";
+import { SavedProvidersModal, type SavedProvider } from "@/components/birdie/SavedProvidersModal";
+import { AddressesModal } from "@/components/birdie/AddressesModal";
+import { LocationModal } from "@/components/birdie/LocationModal";
+import { SettingsPanel } from "@/components/birdie/SettingsPanel";
+import { Assistant } from "./assistant";
+import { useBirdieStore } from "@/lib/store";
+
+const SAVED_KEY = "birdie_saved_providers";
 
 export default function Home() {
+  const [mounted, setMounted] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadFromWelcome, setUploadFromWelcome] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
+  const [addressesOpen, setAddressesOpen] = useState(false);
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [savedProviders, setSavedProviders] = useState<SavedProvider[]>([]);
+
+  // Pending message waiting for location
+  const pendingMessageRef = useRef<string | null>(null);
+
+  const addressCount = useBirdieStore((s) => s.savedAddresses.length);
+
+  const loadSaved = useCallback(() => {
+    try {
+      setSavedProviders(JSON.parse(localStorage.getItem(SAVED_KEY) || "[]"));
+    } catch { setSavedProviders([]); }
+  }, []);
+
+  useEffect(() => {
+    setMounted(true);
+    loadSaved();
+
+    // Sync i18n language after hydration to avoid SSR mismatch
+    const detected = detectLanguage();
+    if (i18n.language !== detected) {
+      i18n.changeLanguage(detected);
+    }
+
+    const handleSavedUpdate = () => loadSaved();
+    window.addEventListener("birdie_saved_update", handleSavedUpdate);
+
+    // Listen for location requests from thread.tsx
+    const handleNeedLocation = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      pendingMessageRef.current = detail?.message || null;
+      setLocationModalOpen(true);
+    };
+    window.addEventListener("birdie_need_location", handleNeedLocation);
+
+    return () => {
+      window.removeEventListener("birdie_saved_update", handleSavedUpdate);
+      window.removeEventListener("birdie_need_location", handleNeedLocation);
+    };
+  }, [loadSaved]);
+
+  const removeSaved = (name: string) => {
+    const next = savedProviders.filter((p) => p.name !== name);
+    localStorage.setItem(SAVED_KEY, JSON.stringify(next));
+    setSavedProviders(next);
+    window.dispatchEvent(new Event("birdie_saved_update"));
+  };
+
+  const handleUploadClose = () => {
+    setUploadOpen(false);
+    if (uploadFromWelcome) {
+      setUploadFromWelcome(false);
+      setShowWelcome(false);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("birdie_welcome_shown", "true");
+      }
+    }
+  };
+
+  // When location is selected from the modal, resend the pending message.
+  // Small delay ensures Zustand store is fully updated before the message fires.
+  const handleLocationSelected = () => {
+    setLocationModalOpen(false);
+    const msg = pendingMessageRef.current;
+    pendingMessageRef.current = null;
+    if (msg) {
+      console.log("[page] dispatching birdie_send_message:", msg, "location:", useBirdieStore.getState().location);
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("birdie_send_message", { detail: { message: msg } }),
+        );
+      }, 100);
+    }
+  };
+
+  if (!mounted) {
+    return <div className="flex h-dvh items-center justify-center" />;
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <>
+      {showWelcome && (
+        <WelcomeScreen
+          onDismiss={() => setShowWelcome(false)}
+          onUpload={() => {
+            setUploadFromWelcome(true);
+            setUploadOpen(true);
+          }}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+      )}
+
+      <SBCUploadModal open={uploadOpen} onClose={handleUploadClose} />
+      <SavedProvidersModal
+        open={savedOpen}
+        onClose={() => setSavedOpen(false)}
+        providers={savedProviders}
+        onRemove={removeSaved}
+      />
+      <AddressesModal open={addressesOpen} onClose={() => setAddressesOpen(false)} />
+      <LocationModal
+        open={locationModalOpen}
+        onClose={() => { setLocationModalOpen(false); pendingMessageRef.current = null; }}
+        onLocationSelected={handleLocationSelected}
+      />
+      <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      <div className="flex h-dvh flex-col">
+        <TopBar
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          onOpenUpload={() => setUploadOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            onOpenUpload={() => { setSidebarOpen(false); setUploadOpen(true); }}
+            onOpenSaved={() => { setSidebarOpen(false); setSavedOpen(true); }}
+            onOpenAddresses={() => { setSidebarOpen(false); setAddressesOpen(true); }}
+            onOpenSettings={() => { setSidebarOpen(false); setSettingsOpen(true); }}
+            savedCount={savedProviders.length}
+            addressCount={addressCount}
+          />
+
+          <main className="flex flex-1 flex-col overflow-hidden">
+            <Assistant />
+          </main>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+    </>
   );
 }

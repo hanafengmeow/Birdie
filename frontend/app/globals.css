@@ -48,83 +48,292 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ═══ Birdie Design System ═══════════════════════════════════
+   Colors researched from open.gif palette:
+   - Soft lavender sky (#C8B8E8 → #D4C5F0)
+   - Rose/pink clouds (#D8899E → #E0A0B0)
+   - Purple water reflection (#C0B0D8)
+   - Cream/gold accents (#E8D8B8)
+
+   Gradients are DEEPER than background for contrast,
+   but stay in the same soft, dreamy family.
+   ═════════════════════════════════════════════════════════════ */
+
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* ── Primary gradient: lavender-purple → rose-pink ────────── */
+  --b-primary-start: #9B7BC8;
+  --b-primary-end: #D4789E;
+  --b-primary-gradient: linear-gradient(135deg, var(--b-primary-start) 0%, var(--b-primary-end) 100%);
+
+  /* ── Secondary gradient: soft teal → sky blue ─────────────── */
+  --b-secondary-start: #6BB8C8;
+  --b-secondary-end: #88C8E8;
+  --b-secondary-gradient: linear-gradient(135deg, var(--b-secondary-start) 0%, var(--b-secondary-end) 100%);
+
+  /* ── Text ─────────────────────────────────────────────────── */
+  --b-text: #3A3550;
+  --b-text-secondary: #8E8A9E;
+  --b-text-accent: #7B6FA0;
+
+  /* ── Surfaces ─────────────────────────────────────────────── */
+  --b-bg: #FFFFFF;
+  --b-bg-light: #F8F6FC;
+  --b-bg-input: #F9F8FC;
+  --b-border: #E4E0EE;
+
+  /* ── Shadows (derived from primary, purple-tinted) ──────── */
+  --b-shadow-sm: 0 2px 8px color-mix(in srgb, var(--b-primary-start) 8%, transparent);
+  --b-shadow-md: 0 4px 16px color-mix(in srgb, var(--b-primary-start) 12%, transparent);
+  --b-shadow-lg: 0 8px 32px color-mix(in srgb, var(--b-primary-start) 15%, transparent);
+
+  /* ── Supporting ───────────────────────────────────────────── */
+  --b-success: #5EAE8B;
+  --b-error: #D4687A;
+  --b-caution: #D4A060;
+
+  /* ── Shadcn overrides ─────────────────────────────────────── */
+  --background: #FFFFFF;
+  --foreground: #3A3550;
+  --card: #FFFFFF;
+  --card-foreground: #3A3550;
+  --popover: #FFFFFF;
+  --popover-foreground: #3A3550;
+  --primary: #9B7BC8;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F8F6FC;
+  --secondary-foreground: #3A3550;
+  --muted: #F8F6FC;
+  --muted-foreground: #8E8A9E;
+  --accent: #F8F6FC;
+  --accent-foreground: #3A3550;
+  --destructive: #D4687A;
+  --border: #E4E0EE;
+  --input: #E4E0EE;
+  --ring: #9B7BC8;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #3A3550;
+  --sidebar-primary: #9B7BC8;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F8F6FC;
+  --sidebar-accent-foreground: #3A3550;
+  --sidebar-border: #E4E0EE;
+  --sidebar-ring: #9B7BC8;
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+/* ═══ Animations ═══════════════════════════════════════════ */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes heartBeat {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+@keyframes glowPulse {
+  0%, 100% { text-shadow: 0 0 12px color-mix(in srgb, var(--b-primary-start) 40%, transparent), 0 0 24px color-mix(in srgb, var(--b-primary-end) 20%, transparent); }
+  50%      { text-shadow: 0 0 28px color-mix(in srgb, var(--b-primary-end) 70%, transparent), 0 0 48px color-mix(in srgb, var(--b-primary-start) 40%, transparent); }
+}
+@keyframes toastSlide {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
+.animate-slide-up  { animation: slideUp 300ms ease-out both; }
+.animate-fade-in   { animation: fadeIn 200ms ease-out both; }
+.animate-heart     { animation: heartBeat 300ms ease-out; }
+.animate-glow      { animation: glowPulse 3s ease-in-out infinite; }
+.animate-toast     { animation: toastSlide 200ms ease-out both; }
+
+/* ═══ Base ═════════════════════════════════════════════════ */
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
+  * { @apply border-border outline-ring/50; }
   body {
-    @apply bg-background text-foreground;
+    background: var(--b-bg);
+    color: var(--b-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  html {
-    @apply font-sans;
-  }
+}
+
+/* ═══ Component Classes ═══════════════════════════════════ */
+
+/* TopBar */
+.birdie-topbar {
+  height: 56px;
+  background: #fff;
+  box-shadow: var(--b-shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+/* Sidebar */
+.birdie-sidebar {
+  width: 280px;
+  background: #fff;
+  border-right: 1px solid var(--b-border);
+  overflow-y: auto;
+}
+
+/* User message bubble */
+.birdie-user-msg {
+  background: var(--b-primary-gradient);
+  color: #fff;
+  border-radius: 20px;
+  padding: 12px 16px;
+  max-width: 85%;
+  margin-left: auto;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Assistant message bubble */
+.birdie-assistant-msg {
+  background: var(--b-bg-light);
+  color: var(--b-text);
+  border-radius: 20px;
+  padding: 12px 16px;
+  max-width: 85%;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Provider card */
+.birdie-provider-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: var(--b-shadow-md);
+  padding: 16px;
+  transition: all 200ms ease-in-out;
+}
+.birdie-provider-card:hover {
+  box-shadow: var(--b-shadow-lg);
+  transform: translateY(-2px);
+}
+
+/* Suggestion chip */
+.birdie-chip {
+  border: 1px solid var(--b-border);
+  background: #fff;
+  color: var(--b-text);
+  padding: 12px 16px;
+  border-radius: 24px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 200ms ease-in-out;
+}
+.birdie-chip:hover {
+  background: color-mix(in srgb, var(--b-primary-start) 6%, transparent);
+  border-color: var(--b-primary-start);
+  transform: scale(1.02);
+  box-shadow: var(--b-shadow-sm);
+}
+.birdie-chip:active {
+  background: var(--b-primary-gradient);
+  color: #fff;
+  border-color: transparent;
+  transform: scale(0.98);
+}
+
+/* Text input */
+.birdie-input {
+  border: 1px solid var(--b-border);
+  background: var(--b-bg-input);
+  font-size: 16px;
+  padding: 12px 16px;
+  border-radius: 24px;
+  outline: none;
+  transition: all 200ms ease-in-out;
+  width: 100%;
+}
+.birdie-input:focus {
+  border-color: var(--b-primary-start);
+  background: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--b-primary-start) 10%, transparent);
+}
+
+/* Send button */
+.birdie-send-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--b-primary-gradient);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  transition: all 200ms ease-in-out;
+  flex-shrink: 0;
+}
+.birdie-send-btn:hover { opacity: 0.9; }
+.birdie-send-btn:active { transform: scale(0.95); }
+.birdie-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Primary gradient button (full width) */
+.birdie-btn-primary {
+  background: var(--b-primary-gradient);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 16px;
+  border-radius: 24px;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  transition: all 200ms ease-in-out;
+}
+.birdie-btn-primary:hover { opacity: 0.92; }
+.birdie-btn-primary:active { transform: scale(0.98); }
+
+/* Secondary gradient button */
+.birdie-btn-secondary {
+  background: var(--b-secondary-gradient);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 16px;
+  border-radius: 24px;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  transition: all 200ms ease-in-out;
+}
+.birdie-btn-secondary:hover { opacity: 0.92; }
+.birdie-btn-secondary:active { transform: scale(0.98); }
+
+/* Typing indicator */
+@keyframes typingDot {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-4px); }
+}
+.typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--b-text-secondary);
+  margin: 0 2px;
+}
+.typing-dot:nth-child(1) { animation: typingDot 1.4s infinite 0s; }
+.typing-dot:nth-child(2) { animation: typingDot 1.4s infinite 0.2s; }
+.typing-dot:nth-child(3) { animation: typingDot 1.4s infinite 0.4s; }
+
+/* Scrollbar */
+.birdie-scroll::-webkit-scrollbar { width: 4px; }
+.birdie-scroll::-webkit-scrollbar-thumb {
+  background: var(--b-border);
+  border-radius: 2px;
 }

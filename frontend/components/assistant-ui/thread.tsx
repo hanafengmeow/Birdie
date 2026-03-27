@@ -1,54 +1,57 @@
-import {
-  ComposerAddAttachment,
-  ComposerAttachments,
-  UserMessageAttachments,
-} from "@/components/assistant-ui/attachment";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { ProviderCard } from "@/components/birdie/ProviderCard";
+import { BIRDIE_DATA_MARKER_START, BIRDIE_DATA_MARKER_END } from "@/lib/constants";
+import { needsLocation, requestLocation } from "@/lib/location-check";
 import {
-  ActionBarMorePrimitive,
   ActionBarPrimitive,
   AuiIf,
-  BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
-  SuggestionPrimitive,
   ThreadPrimitive,
   useAuiState,
+  useMessage,
+  useThreadRuntime,
 } from "@assistant-ui/react";
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  CheckIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
+  SendIcon,
   CopyIcon,
-  DownloadIcon,
-  MoreHorizontalIcon,
-  PencilIcon,
+  CheckIcon,
   RefreshCwIcon,
   SquareIcon,
+  BirdIcon,
 } from "lucide-react";
-import type { FC } from "react";
+import { type FC, useMemo, useCallback } from "react";
+
+// ── Helper: send message, checking location first ────────────
+
+function useSendWithLocationCheck() {
+  const runtime = useThreadRuntime();
+
+  return useCallback(
+    (text: string) => {
+      if (needsLocation(text)) {
+        // Always confirm/choose location before searching
+        // Page will call runtime.append after location is confirmed
+        requestLocation(text);
+        return;
+      }
+
+      runtime.append({
+        role: "user",
+        content: [{ type: "text", text }],
+      });
+    },
+    [runtime],
+  );
+}
+
+// ── Thread ───────────────────────────────────────────────────
 
 export const Thread: FC = () => {
   return (
-    <ThreadPrimitive.Root
-      className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
-      style={{
-        ["--thread-max-width" as string]: "44rem",
-        ["--composer-radius" as string]: "24px",
-        ["--composer-padding" as string]: "10px",
-      }}
-    >
-      <ThreadPrimitive.Viewport
-        turnAnchor="top"
-        className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
-      >
+    <ThreadPrimitive.Root className="aui-root aui-thread-root flex h-full flex-col">
+      <ThreadPrimitive.Viewport className="birdie-scroll relative flex flex-1 flex-col overflow-y-auto scroll-smooth px-3 pt-4 pb-2">
         <AuiIf condition={(s) => s.thread.isEmpty}>
           <ThreadWelcome />
         </AuiIf>
@@ -57,8 +60,10 @@ export const Thread: FC = () => {
           {() => <ThreadMessage />}
         </ThreadPrimitive.Messages>
 
-        <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-(--composer-radius) bg-background pb-4 md:pb-6">
-          <ThreadScrollToBottom />
+        <ThreadPrimitive.ViewportFooter
+          className="sticky bottom-0 mt-auto bg-white pb-3 pt-2"
+          style={{ boxShadow: "0 -2px 8px rgba(0,0,0,0.04)" }}
+        >
           <Composer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
@@ -68,216 +73,253 @@ export const Thread: FC = () => {
 
 const ThreadMessage: FC = () => {
   const role = useAuiState((s) => s.message.role);
-  const isEditing = useAuiState((s) => s.message.composer.isEditing);
-  if (isEditing) return <EditComposer />;
   if (role === "user") return <UserMessage />;
   return <AssistantMessage />;
 };
 
-const ThreadScrollToBottom: FC = () => {
+// ── Empty state ──────────────────────────────────────────────
+
+const ThreadWelcome: FC = () => (
+  <div className="flex flex-1 flex-col items-center justify-center pb-8">
+    <BirdIcon className="size-10" style={{ color: "var(--b-text-accent)" }} />
+    <h2
+      className="mt-3 text-lg font-bold"
+      style={{ color: "var(--b-text-accent)" }}
+    >
+      How can I help you today?
+    </h2>
+    <div className="mt-6 flex w-full max-w-md flex-wrap justify-center gap-2 px-4">
+      {SUGGESTIONS.map((text) => (
+        <SuggestionChip key={text} text={text} />
+      ))}
+    </div>
+  </div>
+);
+
+const SUGGESTIONS = [
+  "Find urgent care near me",
+  "What\u2019s my copay?",
+  "Do I need a referral?",
+];
+
+const SuggestionChip: FC<{ text: string }> = ({ text }) => {
+  const send = useSendWithLocationCheck();
   return (
-    <ThreadPrimitive.ScrollToBottom render={<TooltipIconButton tooltip="Scroll to bottom" variant="outline" className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:border-border dark:bg-background dark:hover:bg-accent" />}><ArrowDownIcon /></ThreadPrimitive.ScrollToBottom>
+    <button className="birdie-chip text-left" onClick={() => send(text)}>
+      {text}
+    </button>
   );
 };
 
-const ThreadWelcome: FC = () => {
-  return (
-    <div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col">
-      <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
-        <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-4">
-          <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both font-semibold text-2xl duration-200">
-            Hello there!
-          </h1>
-          <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground text-xl delay-75 duration-200">
-            How can I help you today?
-          </p>
-        </div>
-      </div>
-      <ThreadSuggestions />
-    </div>
-  );
-};
-
-const ThreadSuggestions: FC = () => {
-  return (
-    <div className="aui-thread-welcome-suggestions grid w-full @md:grid-cols-2 gap-2 pb-4">
-      <ThreadPrimitive.Suggestions>
-        {() => <ThreadSuggestionItem />}
-      </ThreadPrimitive.Suggestions>
-    </div>
-  );
-};
-
-const ThreadSuggestionItem: FC = () => {
-  return (
-    <div className="aui-thread-welcome-suggestion-display fade-in slide-in-from-bottom-2 @md:nth-[n+3]:block nth-[n+3]:hidden animate-in fill-mode-both duration-200">
-      <SuggestionPrimitive.Trigger send render={<Button variant="ghost" className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-3xl border bg-background px-4 py-3 text-left text-sm transition-colors hover:bg-muted" />}><SuggestionPrimitive.Title className="aui-thread-welcome-suggestion-text-1 font-medium" /><SuggestionPrimitive.Description className="aui-thread-welcome-suggestion-text-2 text-muted-foreground empty:hidden" /></SuggestionPrimitive.Trigger>
-    </div>
-  );
-};
+// ── Composer ─────────────────────────────────────────────────
 
 const Composer: FC = () => {
+  const runtime = useThreadRuntime();
+
   return (
-    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
-      <ComposerPrimitive.AttachmentDropzone render={<div data-slot="composer-shell" className="flex w-full flex-col gap-2 rounded-(--composer-radius) border bg-background p-(--composer-padding) transition-shadow focus-within:border-ring/75 focus-within:ring-2 focus-within:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50" />}><ComposerAttachments /><ComposerPrimitive.Input
-                      placeholder="Send a message..."
-                      className="aui-composer-input max-h-32 min-h-10 w-full resize-none bg-transparent px-1.75 py-1 text-sm outline-none placeholder:text-muted-foreground/80"
-                      rows={1}
-                      autoFocus
-                      aria-label="Message input"
-                    /><ComposerAction /></ComposerPrimitive.AttachmentDropzone>
+    <ComposerPrimitive.Root
+      className="flex w-full items-center gap-2 px-1"
+      onSubmit={(e) => {
+        // Intercept submit to check if location is needed
+        const text = runtime.composer.getState().text.trim();
+        if (text && needsLocation(text)) {
+          e.preventDefault();
+          requestLocation(text);
+          runtime.composer.setText("");
+        }
+        // Otherwise let default ComposerPrimitive.Send handle it
+      }}
+    >
+      <ComposerPrimitive.Input
+        placeholder="Ask me anything..."
+        className="birdie-input flex-1"
+        rows={1}
+        autoFocus
+        aria-label="Message input"
+      />
+      <AuiIf condition={(s) => !s.thread.isRunning}>
+        <ComposerPrimitive.Send className="birdie-send-btn" aria-label="Send">
+          <SendIcon className="size-5" />
+        </ComposerPrimitive.Send>
+      </AuiIf>
+      <AuiIf condition={(s) => s.thread.isRunning}>
+        <ComposerPrimitive.Cancel className="birdie-send-btn" aria-label="Stop">
+          <SquareIcon className="size-3.5 fill-current" />
+        </ComposerPrimitive.Cancel>
+      </AuiIf>
     </ComposerPrimitive.Root>
   );
 };
 
-const ComposerAction: FC = () => {
+// ── Typing indicator ─────────────────────────────────────────
+
+const TypingIndicator: FC = () => (
+  <div className="flex items-center gap-0.5 py-2 px-1">
+    <span className="typing-dot" />
+    <span className="typing-dot" />
+    <span className="typing-dot" />
+  </div>
+);
+
+// ── Cleaned markdown (strips data block from display) ────────
+
+const CleanedMarkdownText: FC = () => {
+  const message = useMessage();
+  const parts = (message?.content ?? []) as Array<{ type: string; text: string }>;
+  const hasDataBlock = parts.some(
+    (p) => p.type === "text" && p.text?.includes(BIRDIE_DATA_MARKER_START),
+  );
+
+  // If no data block, render normally
+  if (!hasDataBlock) return <MarkdownText />;
+
+  // Strip data block from display — MarkdownText would show raw JSON
+  const fullText = parts
+    .filter((p) => p.type === "text")
+    .map((p) => p.text)
+    .join("");
+  const cleanText = fullText.slice(0, fullText.indexOf(BIRDIE_DATA_MARKER_START)).trim();
+  if (!cleanText) return null;
+  return <div className="whitespace-pre-wrap">{cleanText}</div>;
+};
+
+// ── Messages ─────────────────────────────────────────────────
+
+const UserMessage: FC = () => (
+  <MessagePrimitive.Root className="flex justify-end py-1" data-role="user">
+    <div className="birdie-user-msg animate-slide-up">
+      <MessagePrimitive.Parts />
+    </div>
+  </MessagePrimitive.Root>
+);
+
+// ── Birdie data ──────────────────────────────────────────────
+
+interface BirdieData {
+  care_router?: Record<string, unknown> | null;
+  find_care?: {
+    results?: Array<Record<string, unknown>>;
+    telehealth_fallback?: boolean;
+  } | null;
+}
+
+function useBirdieData(): BirdieData | null {
+  const message = useMessage();
+  return useMemo(() => {
+    if (!message || message.role !== "assistant") return null;
+
+    // Check all text parts (v6 uses `content` or `parts`)
+    const parts = (message.content ?? (message as Record<string, unknown>).parts ?? []) as Array<{ type: string; text: string }>;
+    for (const part of parts) {
+      if (
+        part.type === "text" &&
+        part.text?.includes(BIRDIE_DATA_MARKER_START)
+      ) {
+        const startIdx = part.text.indexOf(BIRDIE_DATA_MARKER_START);
+        const endIdx = part.text.indexOf(BIRDIE_DATA_MARKER_END);
+        const jsonStr = endIdx !== -1
+          ? part.text.slice(startIdx + BIRDIE_DATA_MARKER_START.length, endIdx)
+          : part.text.slice(startIdx + BIRDIE_DATA_MARKER_START.length);
+        try {
+          return JSON.parse(jsonStr.trim());
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  }, [message]);
+}
+
+const BirdieCards: FC = () => {
+  const data = useBirdieData();
+  if (!data?.find_care?.results?.length) return null;
   return (
-    <div className="aui-composer-action-wrapper relative flex items-center justify-between">
-      <ComposerAddAttachment />
-      <AuiIf condition={(s) => !s.thread.isRunning}>
-        <ComposerPrimitive.Send render={<TooltipIconButton tooltip="Send message" side="bottom" type="button" variant="default" size="icon" className="aui-composer-send size-8 rounded-full" aria-label="Send message" />}><ArrowUpIcon className="aui-composer-send-icon size-4" /></ComposerPrimitive.Send>
-      </AuiIf>
-      <AuiIf condition={(s) => s.thread.isRunning}>
-        <ComposerPrimitive.Cancel render={<Button type="button" variant="default" size="icon" className="aui-composer-cancel size-8 rounded-full" aria-label="Stop generating" />}><SquareIcon className="aui-composer-cancel-icon size-3 fill-current" /></ComposerPrimitive.Cancel>
-      </AuiIf>
+    <div className="mt-2">
+      {data.find_care.results.map((p, i) => (
+        <ProviderCard
+          key={`p-${i}`}
+          provider={p as Record<string, unknown> & { name: string }}
+        />
+      ))}
     </div>
   );
 };
 
-const MessageError: FC = () => {
-  return (
-    <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="aui-message-error-root mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-destructive text-sm dark:bg-destructive/5 dark:text-red-200">
-        <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
-      </ErrorPrimitive.Root>
-    </MessagePrimitive.Error>
-  );
-};
-
 const AssistantMessage: FC = () => {
-  return (
-    <MessagePrimitive.Root
-      className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
-      data-role="assistant"
-    >
-      <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-        <MessagePrimitive.Parts>
-          {({ part }) => {
-            if (part.type === "text") return <MarkdownText />;
-            if (part.type === "tool-call")
-              return part.toolUI ?? <ToolFallback {...part} />;
-            return null;
-          }}
-        </MessagePrimitive.Parts>
-        <MessageError />
-      </div>
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const message = useMessage();
+  const parts = (message?.content ?? []) as Array<{ type: string; text: string }>;
+  const hasText = parts.some((p) => p.type === "text" && p.text?.trim().length > 0);
+  const showTyping = isRunning && !hasText;
 
-      <div className="aui-assistant-message-footer mt-1 ml-2 flex min-h-6 items-center">
-        <BranchPicker />
-        <AssistantActionBar />
-      </div>
-    </MessagePrimitive.Root>
-  );
-};
-
-const AssistantActionBar: FC = () => {
   return (
-    <ActionBarPrimitive.Root
-      hideWhenRunning
-      autohide="not-last"
-      className="aui-assistant-action-bar-root col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground"
-    >
-      <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip="Copy" />}><AuiIf condition={(s) => s.message.isCopied}>
-                      <CheckIcon />
-                    </AuiIf><AuiIf condition={(s) => !s.message.isCopied}>
-                      <CopyIcon />
-                    </AuiIf></ActionBarPrimitive.Copy>
-      <ActionBarPrimitive.Reload render={<TooltipIconButton tooltip="Refresh" />}><RefreshCwIcon /></ActionBarPrimitive.Reload>
-      <ActionBarMorePrimitive.Root>
-        <ActionBarMorePrimitive.Trigger render={<TooltipIconButton tooltip="More" className="data-[state=open]:bg-accent" />}><MoreHorizontalIcon /></ActionBarMorePrimitive.Trigger>
-        <ActionBarMorePrimitive.Content
-          side="bottom"
-          align="start"
-          className="aui-action-bar-more-content z-50 min-w-32 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+    <MessagePrimitive.Root className="py-1" data-role="assistant">
+      <div className="flex items-start gap-2">
+        <span
+          className="mt-1 flex size-6 shrink-0 items-center justify-center rounded-full"
+          style={{ background: "var(--b-bg-light)" }}
         >
-          <ActionBarPrimitive.ExportMarkdown render={<ActionBarMorePrimitive.Item className="aui-action-bar-more-item flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground" />}><DownloadIcon className="size-4" />Export as Markdown
-                              </ActionBarPrimitive.ExportMarkdown>
-        </ActionBarMorePrimitive.Content>
-      </ActionBarMorePrimitive.Root>
-    </ActionBarPrimitive.Root>
-  );
-};
-
-const UserMessage: FC = () => {
-  return (
-    <MessagePrimitive.Root
-      className="aui-user-message-root fade-in slide-in-from-bottom-1 mx-auto grid w-full max-w-(--thread-max-width) animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 py-3 duration-150 [&:where(>*)]:col-start-2"
-      data-role="user"
-    >
-      <UserMessageAttachments />
-
-      <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
-        <div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
-          <MessagePrimitive.Parts />
-        </div>
-        <div className="aui-user-action-bar-wrapper absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
-          <UserActionBar />
+          <BirdIcon
+            className="size-3.5"
+            style={{ color: "var(--b-text-accent)" }}
+          />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="birdie-assistant-msg animate-slide-up">
+            {showTyping ? (
+              <TypingIndicator />
+            ) : (
+              <MessagePrimitive.Parts>
+                {({ part }) => {
+                  if (part.type === "text") return <CleanedMarkdownText />;
+                  return null;
+                }}
+              </MessagePrimitive.Parts>
+            )}
+          </div>
+          <BirdieCards />
+          <MessagePrimitive.Error>
+            <ErrorPrimitive.Root
+              className="mt-2 rounded-lg border p-3 text-sm"
+              style={{
+                borderColor: "var(--b-error)",
+                background: "rgba(212,104,122,0.06)",
+                color: "var(--b-error)",
+              }}
+            >
+              <ErrorPrimitive.Message />
+            </ErrorPrimitive.Root>
+          </MessagePrimitive.Error>
+          <AssistantActions />
         </div>
       </div>
-
-      <BranchPicker className="aui-user-branch-picker col-span-full col-start-1 row-start-3 -mr-1 justify-end" />
     </MessagePrimitive.Root>
   );
 };
 
-const UserActionBar: FC = () => {
-  return (
-    <ActionBarPrimitive.Root
-      hideWhenRunning
-      autohide="not-last"
-      className="aui-user-action-bar-root flex flex-col items-end"
+const AssistantActions: FC = () => (
+  <ActionBarPrimitive.Root
+    hideWhenRunning
+    autohide="not-last"
+    className="mt-1 flex gap-1"
+  >
+    <ActionBarPrimitive.Copy
+      className="inline-flex size-6 items-center justify-center rounded p-1 hover:bg-[var(--b-bg-light)]"
+      style={{ color: "var(--b-text-secondary)" }}
     >
-      <ActionBarPrimitive.Edit render={<TooltipIconButton tooltip="Edit" className="aui-user-action-edit p-4" />}><PencilIcon /></ActionBarPrimitive.Edit>
-    </ActionBarPrimitive.Root>
-  );
-};
-
-const EditComposer: FC = () => {
-  return (
-    <MessagePrimitive.Root className="aui-edit-composer-wrapper mx-auto flex w-full max-w-(--thread-max-width) flex-col px-2 py-3">
-      <ComposerPrimitive.Root className="aui-edit-composer-root ml-auto flex w-full max-w-[85%] flex-col rounded-2xl bg-muted">
-        <ComposerPrimitive.Input
-          className="aui-edit-composer-input min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
-          autoFocus
-        />
-        <div className="aui-edit-composer-footer mx-3 mb-3 flex items-center gap-2 self-end">
-          <ComposerPrimitive.Cancel render={<Button variant="ghost" size="sm" />}>Cancel
-                              </ComposerPrimitive.Cancel>
-          <ComposerPrimitive.Send render={<Button size="sm" />}>Update</ComposerPrimitive.Send>
-        </div>
-      </ComposerPrimitive.Root>
-    </MessagePrimitive.Root>
-  );
-};
-
-const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
-  className,
-  ...rest
-}) => {
-  return (
-    <BranchPickerPrimitive.Root
-      hideWhenSingleBranch
-      className={cn(
-        "aui-branch-picker-root mr-2 -ml-2 inline-flex items-center text-muted-foreground text-xs",
-        className,
-      )}
-      {...rest}
+      <AuiIf condition={(s) => s.message.isCopied}>
+        <CheckIcon className="size-3.5" />
+      </AuiIf>
+      <AuiIf condition={(s) => !s.message.isCopied}>
+        <CopyIcon className="size-3.5" />
+      </AuiIf>
+    </ActionBarPrimitive.Copy>
+    <ActionBarPrimitive.Reload
+      className="inline-flex size-6 items-center justify-center rounded p-1 hover:bg-[var(--b-bg-light)]"
+      style={{ color: "var(--b-text-secondary)" }}
     >
-      <BranchPickerPrimitive.Previous render={<TooltipIconButton tooltip="Previous" />}><ChevronLeftIcon /></BranchPickerPrimitive.Previous>
-      <span className="aui-branch-picker-state font-medium">
-        <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
-      </span>
-      <BranchPickerPrimitive.Next render={<TooltipIconButton tooltip="Next" />}><ChevronRightIcon /></BranchPickerPrimitive.Next>
-    </BranchPickerPrimitive.Root>
-  );
-};
+      <RefreshCwIcon className="size-3.5" />
+    </ActionBarPrimitive.Reload>
+  </ActionBarPrimitive.Root>
+);

@@ -1,0 +1,57 @@
+{
+  "welcome": {
+    "tagline": "Your healthcare guide in the US",
+    "upload_cta": "Upload my insurance plan",
+    "ask_cta": "Ask a question",
+    "or": "or"
+  },
+  "chat": {
+    "placeholder": "Ask Birdie anything about healthcare...",
+    "suggestion1": "I have a fever tonight \u2014 where should I go?",
+    "suggestion2": "What\u2019s my urgent care copay?",
+    "suggestion3": "Find a pharmacy near me"
+  },
+  "topbar": {
+    "plan_loaded": "Plan loaded",
+    "upload_plan": "Upload SBC"
+  },
+  "upload": {
+    "title": "Upload your SBC",
+    "description": "Drag and drop your Summary of Benefits and Coverage (SBC) PDF here, or click to browse.",
+    "processing": "Analyzing your plan \u2014 this may take up to a minute\u2026",
+    "success": "Plan uploaded successfully!",
+    "error": "Upload failed. Please try a different PDF.",
+    "only_pdf": "Only PDF files are accepted."
+  },
+  "provider": {
+    "call": "Call",
+    "directions": "Get Directions",
+    "verify_note": "Call to verify insurance coverage",
+    "open": "Open",
+    "closed": "Closed",
+    "reviews": "reviews",
+    "miles": "mi",
+    "telehealth_title": "Telehealth via your insurance",
+    "telehealth_note": "Log into your insurer\u2019s app or website to start a telehealth visit"
+  },
+  "confidence": {
+    "HIGH": "\u2713 Confirmed",
+    "MED": "~ Likely \u2014 verify",
+    "CONFLICT": "\u26a0 Conflict found",
+    "MISSING": "\u2014 Not in your plan"
+  },
+  "lang": {
+    "toggle": "\u4e2d\u6587",
+    "current": "EN"
+  },
+  "sidebar": {
+    "title": "Your Plan",
+    "no_plan": "No plan uploaded yet",
+    "upload_prompt": "Upload your SBC PDF to get personalized answers.",
+    "deductible": "Deductible",
+    "urgent_care": "Urgent Care",
+    "er": "Emergency Room",
+    "telehealth": "Telehealth",
+    "insurer_phone": "Insurer Phone"
+  }
+}
