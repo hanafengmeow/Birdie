@@ -1,10 +1,8 @@
-# Docs (local only, never commit)
-CLAUDE.md
-birdie_design_doc.md
-frontend/CLAUDE.md
-frontend/AGENTS.md
+
+.claude/
 **/CLAUDE.md
 **/AGENTS.md
+docs/
 
 # Environment variables
 .env
@@ -22,5 +20,7 @@ node_modules/
 
 # System
 .DS_Store
-
 .vscode/
+
+# Test PDFs (large files, local only)
+testpdf/
